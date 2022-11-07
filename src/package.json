@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "rxjs": "7.5.7",
-    "task-queue-for-rxjs": "0.0.5"
+    "task-queue-for-rxjs": "0.0.5",
+    "strict-event-emitter-types": "2.0.0"
   }
 }

@@ -1,52 +1,29 @@
-import { AsyncSubject, concatMap, defer, finalize, forkJoin, from, Observable, Observer, Subject, Subscriber, Subscription } from "rxjs";
-import { TaskQueue } from "task-queue-for-rxjs";
+import StrictEventEmitter from 'strict-event-emitter-types';
 
-const test = require('node:test');
-const assert = require('assert');
-
-function delay(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+interface Events {
+    request: (request: { a: string, b: Observable<any> }) => { a: string, b: Observable<any> };
+    done: void;
 }
-const main = async () => {
 
-    const receivedData = [];
-    const exceptedData = ['One', 'One', 'Two', 'Two', 'Three', 'Three']
+import { EventEmitter } from 'events';
+import { fromEvent, Observable } from 'rxjs';
 
-    function doSubscriberJob$(data: string): Observable<any> {
-        return defer(() => {
-            const x = delay(2000);
-            receivedData.push(data + '1')
-            return x;
-        });
+let ee: StrictEventEmitter<EventEmitter, Events> = new EventEmitter;
+
+const data = { a: 'a2', b: new Observable() };
+
+const handler = {
+    set(target, property, value) {
+        console.log(target, property, value)
+        target[property] = value;
+        return true;
     }
+};
 
-    const componentSubject = new Subject();
-    const doAction = (data: string) => {
-        const eventSubject = new Observable((subscriber) => {
-            subscriber.next(data);
-            subscriber.complete();
-        })
-        componentSubject.next(eventSubject)
-        return eventSubject;
-    }
+const proxyData = new Proxy(data, handler as any);
 
-    componentSubject.subscribe((event: Observable<any>) => {
-        return event.subscribe(doSubscriberJob$)
-    })
+fromEvent(ee, 'request').subscribe(data => { data.a = data.a + ' 1 '; return data; })
+fromEvent(ee, 'request').subscribe(data => { data.a = data.a + ' 2 '; return data; })
 
-    componentSubject.subscribe((event: Observable<any>) => {
-        return event.subscribe(doSubscriberJob$)
-    })
-
-    var tasks$ = [];
-    tasks$.push(doAction('One'));
-    tasks$.push(doAction('Two'));
-    tasks$.push(doAction('Three'));
-    forkJoin(...tasks$).pipe(finalize(() => { })).subscribe(results => {
-
-        console.log(receivedData)
-        // assert.strictEqual(receivedData.length, exceptedData.length);
-        // assert.strictEqual(JSON.stringify(receivedData), JSON.stringify(exceptedData));
-    });
-}
-main()
+const x = ee.emit('request', proxyData)
+console.log(x);
